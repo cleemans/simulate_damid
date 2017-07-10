@@ -1,0 +1,22 @@
+outdir: '/home/NFS/users/c.leemans/projects/damid/simulate_damid/hg19'
+
+bowtie_index:
+    hg19: /home/NFS/users/c.leemans/data/hg19/genome
+
+gatcFragments:
+    hg19: /home/NFS/users/c.leemans/data/gatcFragments/hg19.gff.gz
+
+genome:
+    hg19: /home/NFS/users/c.leemans/data/hg19/genome.fa
+
+chromsizes:
+    hg19: /home/NFS/users/c.leemans/data/hg19/hg19.chrom.sizes
+
+bowtie_index:
+    hg19: /home/NFS/users/c.leemans/data/hg19/genome
+
+samtools: /home/NFS/users/l.pagie/usr/local/src/miniconda2/bin/samtools
+bowtie: /home/NFS/users/l.pagie/usr/local/src/miniconda2/bin/bowtie2
+
+read_length: [65, 100, 150, 250]
+constant_length: 19

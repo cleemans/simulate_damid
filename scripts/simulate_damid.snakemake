@@ -1,0 +1,74 @@
+import os
+import re
+import inspect
+
+
+filename = inspect.getframeinfo(inspect.currentframe()).filename
+path = os.path.dirname(os.path.abspath(filename))
+
+samtools = config['samtools']
+outdir=config['outdir']
+
+rule all:
+    input:
+        expand('{outdir}/mapped/{name}_{length}.fa.gz', outdir=config['outdir'],
+               name=config['genome'].keys(), length=config['read_length'])
+
+# rule rate_gatc:
+#     input:
+#         split=expand('{{outdir}}/split/{species}.bam', species=config['genome'].keys()),
+#         mismatch=expand('{{outdir}}/mismatch/{species}.bam', species=config['genome'].keys()),
+#         gatc=config['gatcFragments']['mm10']
+#     output:
+#         expand('{{outdir}}/gatc_score.txt')
+#     params:
+#         list(config['genome'].keys())
+#     script:
+#         'rate_gatc.py'
+#
+# rule mismatch:
+#     input:
+#         '{outdir}/split/{species}.bam',
+#     output:
+#         '{outdir}/mismatch/{species}.bam'
+#     params:
+#         species='{species}'
+#     shell:
+#         "{samtools} view -h {input} | grep -v {params.species} | "
+#         "{samtools} view -Sb - > {output}"
+
+
+
+rule map_reads:
+    input:
+        '{outdir}/fasta/{name}_{length}.fa.gz',
+    params:
+        bowtie = config["bowtie"],
+        index=lambda wildcards: config['bowtie_index'][wildcards.name]
+    threads: 10
+    log: "{outdir}/mapped/{name}_{length}.mapping.log"
+    output:
+        "{outdir}/mapped/{name}_{length}.bam"
+    shell:
+        "{params.bowtie} -f -p {threads} --very-sensitive "
+        "-x {params.index} -U {input} --met-file {log} | "
+        "{samtools} view -Sb - | {samtools} sort -@ {threads} - > {output}"
+
+
+def read_length(wildcards, constant_length):
+    length = int(wildcards.length) - constant_length
+    return(length)
+
+rule create_fasta:
+    input:
+        lambda wildcards: config['genome'][wildcards.name],
+        lambda wildcards: config['chromsizes'][wildcards.name],
+        lambda wildcards: config['gatcFragments'][wildcards.name]
+    output:
+        '{outdir}/fasta/{name}_{length}.fa.gz'
+    params:
+        lambda wildcards: read_length(wildcards, config['constant_length'])
+    shell:
+        "{path}/simulate_bed.awk -v l={params} {input[1]} <(gunzip -c {input[2]}) | "
+        "bedtools getfasta -s -name -fi {input[0]} -bed /dev/stdin -fo /dev/stdout | "
+        "gzip -c - > {output}"

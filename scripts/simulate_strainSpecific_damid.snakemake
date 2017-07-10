@@ -1,0 +1,114 @@
+import os
+import re
+import inspect
+
+
+filename = inspect.getframeinfo(inspect.currentframe()).filename
+path = os.path.dirname(os.path.abspath(filename))
+
+samtools = config['samtools']
+outdir=config['outdir']
+
+rule all:
+    input:
+        expand('{outdir}/gatc/{name}_{length}.txt.gz', outdir=config['outdir'],
+               name=config['genome'].keys(), length=config['read_length'])
+
+# rule rate_gatc:
+#     input:
+#         split=expand('{{outdir}}/split/{species}.bam', species=config['genome'].keys()),
+#         mismatch=expand('{{outdir}}/mismatch/{species}.bam', species=config['genome'].keys()),
+#         gatc=config['gatcFragments']['mm10']
+#     output:
+#         expand('{{outdir}}/gatc_score.txt')
+#     params:
+#         list(config['genome'].keys())
+#     script:
+#         'rate_gatc.py'
+
+rule gatc_bed:
+    input:
+        '{outdir}/filtered/{name}_{length}.bam',
+        lambda wildcards: config['chromsizes'][config['ref']],
+        lambda wildcards: config['gatcFragments'][config['ref']]
+    output:
+        '{outdir}/gatc/{name}_{length}.txt.gz'
+    params:
+        mapq=config['min_mapq']
+    shell:
+        "bedtools intersect -s -loj "
+        "                   -a <({path}/simulate_bed.awk -v l=4 "
+        "                        {input[1]} <(gunzip -c {input[2]})) "
+        "                   -b <({samtools} view -q {params.mapq} -b "
+        "                        {input[0]}) | "
+        "{path}/count_gatc.awk | "
+        "(head -n1 && tail -n+2 | sort -k1,1 -k2,2n -k3,3n) | "
+        "gzip -c - > {output}"
+
+rule filter_mismatch:
+    input:
+        '{outdir}/split/{name}_{length}.bam',
+        '{outdir}/mismatch/{name}_{length}.bam'
+    output:
+        '{outdir}/filtered/{name}_{length}.bam'
+    shell:
+        "bedtools intersect -v -a {input[0]} -b "
+        "<(bedtools bamtobed -i {input[1]}) > {output}"
+
+
+rule mismatch:
+    input:
+        '{outdir}/split/{name}_{length}.bam',
+    output:
+        '{outdir}/mismatch/{name}_{length}.bam'
+    params:
+        name='{name}'
+    shell:
+        "{samtools} view -h {input} | grep -v {params.name} | "
+        "{samtools} view -Sb - > {output}"
+
+
+rule split:
+    input:
+        bam=expand('{{outdir}}/mapped/{name}_{{length}}.bam',
+                    name=config['genome'].keys())
+    output:
+        expand('{{outdir}}/split/{name}_{{length}}.bam',
+               name=config['genome'].keys()),
+        '{outdir}/split/ambiguous_{length}.bam'
+    script:
+        'split_bam.py'
+
+rule map_reads:
+    input:
+        expand('{{outdir}}/fasta/{name}_{{length}}.fa.gz',
+                name=config['genome'].keys()),
+    params:
+        bowtie = config["bowtie"],
+        index=lambda wildcards: config['bowtie_index'][wildcards.name]
+    threads: 10
+    log: "{outdir}/mapped/{name}_{length}.mapping.log"
+    output:
+        "{outdir}/mapped/{name}_{length}.bam"
+    shell:
+        "{params.bowtie} -f -p {threads} --very-sensitive --met-file {log} "
+        "-x {params.index} -U <(zcat -c {input[0]} {input[1]}) "
+        "--reorder | {samtools} view -Sb - > {output}"
+
+def read_length(wildcards, constant_length):
+    length = int(wildcards.length) - constant_length
+    return(length)
+
+rule create_fasta:
+    input:
+        lambda wildcards: config['genome'][wildcards.name],
+        lambda wildcards: config['chromsizes'][wildcards.name],
+        lambda wildcards: config['gatcFragments'][wildcards.name]
+    output:
+        '{outdir}/fasta/{name}_{length}.fa.gz'
+    params:
+        lambda wildcards: read_length(wildcards, config['constant_length'])
+    shell:
+        "{path}/simulate_bed.awk -v l={params} {input[1]} <(gunzip -c {input[2]}) | "
+        "bedtools getfasta -s -name -fi {input[0]} -bed /dev/stdin -fo /dev/stdout | "
+        "{path}/chop_gatc.awk | gzip -c - > {output}"

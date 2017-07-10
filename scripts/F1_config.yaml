@@ -1,0 +1,31 @@
+outdir: '/home/NFS/users/c.leemans/projects/damid/simulate_damid/F1_hybrid'
+
+gatcFragments:
+    129S1_SvImJ: "/home/NFS/users/c.leemans/data/denovo/gatcFragments/129S1_SvImJ.gff.gz"
+    CAST_EiJ: "/home/NFS/users/c.leemans/data/denovo/gatcFragments/CAST_EiJ.gff.gz"
+    mm10: "/home/NFS/users/c.leemans/data/gatcFragments/GRCm38_68.gff.gz"
+
+genome:
+    129S1_SvImJ: "/home/NFS/users/c.leemans/data/denovo/129S1_SvImJ.chromosomes.unplaced.gt2k.fa"
+    CAST_EiJ: "/home/NFS/users/c.leemans/data/denovo/CAST_EiJ.chromosomes.unplaced.gt2k.fa"
+
+chromsizes:
+    129S1_SvImJ: "/home/NFS/users/c.leemans/data/denovo/129S1_SvImJ.chrom.sizes"
+    CAST_EiJ: "/home/NFS/users/c.leemans/data/denovo/CAST_EiJ.chrom.sizes"
+    mm10: "/home/NFS/users/c.leemans/data/GRCm38/GRCm38_68.chrom.sizes"
+
+bowtie_index:
+  129S1_SvImJ: /home/NFS/users/c.leemans/data/GRCm38/GRCm38_129S1
+  CAST_EiJ: /home/NFS/users/c.leemans/data/GRCm38/GRCm38_CAST
+
+
+samtools: /home/NFS/users/l.pagie/usr/local/src/miniconda2/bin/samtools
+bowtie: /home/NFS/users/l.pagie/usr/local/src/miniconda2/bin/bowtie2
+
+read_length: [65, 100, 150, 250]
+# read_length: [65]
+constant_length: 19
+
+ref: mm10
+
+min_mapq: 42
